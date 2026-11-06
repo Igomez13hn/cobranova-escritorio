@@ -1,0 +1,33 @@
+name: Instalador Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compilar con Nuitka
+        run: |
+          python -m pip install --upgrade pip
+          pip install nuitka ordered-set zstandard
+          python -m nuitka --standalone --assume-yes-for-downloads --windows-console-mode=disable --include-data-dir=web=web --output-dir=build --output-filename=Cobranova.exe cobranova_host.py
+
+      - name: Instalador Inno Setup
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        with:
+          path: cobranova.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cobranova360-Setup
+          path: installer-out/Cobranova360-Setup.exe
+          if-no-files-found: error
