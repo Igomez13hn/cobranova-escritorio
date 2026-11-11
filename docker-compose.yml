@@ -1,0 +1,12 @@
+services:
+  cobranova:
+    build: ./desktop
+    container_name: cobranova
+    ports:
+      - "8787:8787"
+    volumes:
+      - cobranova-data:/data
+    restart: unless-stopped
+
+volumes:
+  cobranova-data:

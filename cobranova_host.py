@@ -28,6 +28,10 @@ def web_dir() -> str:
 
 
 def db_path() -> str:
+    override = os.environ.get("COBRANOVA_DATA")
+    if override:
+        os.makedirs(override, exist_ok=True)
+        return os.path.join(override, "libro.db")
     root = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), ".cobranova")
     folder = os.path.join(root, "Cobranova")
     os.makedirs(folder, exist_ok=True)
@@ -149,9 +153,11 @@ def main() -> None:
     try:
         server = ThreadingHTTPServer((HOST, PORT), Handler)
     except OSError:
-        webbrowser.open(f"http://127.0.0.1:{PORT}/")
+        if os.environ.get("COBRANOVA_NO_BROWSER") != "1":
+            webbrowser.open(f"http://127.0.0.1:{PORT}/")
         return
-    threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{PORT}/")).start()
+    if os.environ.get("COBRANOVA_NO_BROWSER") != "1":
+        threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{PORT}/")).start()
     server.serve_forever()
 
 
