@@ -1,6 +1,6 @@
 services:
   cobranova:
-    build: ./desktop
+    build: .
     container_name: cobranova
     ports:
       - "8787:8787"
