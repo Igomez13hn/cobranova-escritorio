@@ -39,7 +39,8 @@ def db_path() -> str:
 
 
 def connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path(), check_same_thread=False)
+    conn = sqlite3.connect(db_path(), timeout=5, check_same_thread=False)
+    conn.execute("PRAGMA busy_timeout = 5000")
     conn.execute(
         "CREATE TABLE IF NOT EXISTS libro (id INTEGER PRIMARY KEY CHECK (id = 1), revision INTEGER NOT NULL, snapshot TEXT NOT NULL)"
     )
@@ -78,14 +79,18 @@ def write_book(snapshot: dict) -> int:
 
 
 class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
     def log_message(self, fmt: str, *args) -> None:
-        return
+        sys.stdout.write("%s - %s\n" % (self.address_string(), fmt % args))
+        sys.stdout.flush()
 
     def end(self, code: int, body: bytes, content_type: str) -> None:
         self.send_response(code)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
 
@@ -98,6 +103,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
+        if path == "/health":
+            self.end(200, b'{"ok":true}', "application/json")
+            return
         if path == "/api/libro":
             revision, snapshot = read_book()
             if snapshot is None:
@@ -152,10 +160,11 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     try:
         server = ThreadingHTTPServer((HOST, PORT), Handler)
-    except OSError:
-        if os.environ.get("COBRANOVA_NO_BROWSER") != "1":
-            webbrowser.open(f"http://127.0.0.1:{PORT}/")
+    except OSError as error:
+        sys.stderr.write("No se pudo abrir el puerto %s: %s\n" % (PORT, error))
         return
+    sys.stdout.write("Cobranova escuchando en http://%s:%s\n" % (HOST, PORT))
+    sys.stdout.flush()
     if os.environ.get("COBRANOVA_NO_BROWSER") != "1":
         threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{PORT}/")).start()
     server.serve_forever()
